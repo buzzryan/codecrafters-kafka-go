@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/binary"
 	"fmt"
 	"net"
 	"os"
@@ -28,6 +29,21 @@ func main() {
 	}
 	defer conn.Close()
 
-	conn.Read(make([]byte, 1024))
-	conn.Write([]byte{0, 0, 0, 0, 0, 0, 0, 7})
+	request := make([]byte, 1024)
+	_, err = conn.Read(request)
+	if err != nil {
+		fmt.Println("Error reading from server: ", err.Error())
+		os.Exit(1)
+	}
+
+	//_ = int32(binary.BigEndian.Uint32(request[0:4]))        // message size : 4 byte
+	//_ = int32(binary.BigEndian.Uint16(request[4:6]))        // request api key: 2 byte
+	//_ = int32(binary.BigEndian.Uint16(request[6:8]))        // request api version: 2 byte
+	correlationID := binary.BigEndian.Uint32(request[8:12]) // correlation id: 4 byte
+
+	responseMessageSize := int32(0)
+	var response []byte
+	response = binary.BigEndian.AppendUint32(response, uint32(responseMessageSize))
+	response = binary.BigEndian.AppendUint32(response, correlationID)
+	conn.Write(response)
 }
