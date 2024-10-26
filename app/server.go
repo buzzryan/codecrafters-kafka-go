@@ -28,6 +28,6 @@ func main() {
 	}
 	defer conn.Close()
 
-	conn.Read(make([]byte, 1))
+	conn.Read(make([]byte, 1024))
 	conn.Write([]byte{0, 0, 0, 0, 0, 0, 0, 7})
 }
