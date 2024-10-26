@@ -38,12 +38,18 @@ func main() {
 
 	//_ = int32(binary.BigEndian.Uint32(request[0:4]))        // message size : 4 byte
 	//_ = int32(binary.BigEndian.Uint16(request[4:6]))        // request api key: 2 byte
-	//_ = int32(binary.BigEndian.Uint16(request[6:8]))        // request api version: 2 byte
+	apiVersion := int16(binary.BigEndian.Uint16(request[6:8])) // request api version: 2 byte
+
 	correlationID := binary.BigEndian.Uint32(request[8:12]) // correlation id: 4 byte
 
 	responseMessageSize := int32(0)
 	var response []byte
 	response = binary.BigEndian.AppendUint32(response, uint32(responseMessageSize))
 	response = binary.BigEndian.AppendUint32(response, correlationID)
+
+	if apiVersion < 0 || apiVersion > 4 {
+		response = binary.BigEndian.AppendUint16(response, uint16(35))
+
+	}
 	conn.Write(response)
 }
