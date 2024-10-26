@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/binary"
 	"errors"
+	"io"
 	"log/slog"
 	"net"
 	"os"
@@ -15,61 +16,20 @@ func main() {
 		os.Exit(1)
 	}
 
-	conn, err := l.Accept()
-	if err != nil {
-		slog.Error("accept connection: ", err.Error())
-		os.Exit(1)
-	}
-	defer func(conn net.Conn) {
-		err := conn.Close()
-		if err != nil {
-			slog.Warn("close connection: ", err.Error())
-		}
-	}(conn)
-
 	for {
-		readBuffer := make([]byte, 1024)
-		_, err = conn.Read(readBuffer)
+		conn, err := l.Accept()
 		if err != nil {
-			slog.Error("read from the connected stream: ", err.Error())
+			slog.Error("accept connection: ", err.Error())
 			os.Exit(1)
 		}
-		req, err := parseRequest(readBuffer)
-		if err != nil {
-			slog.Error("parse request: ", err.Error())
-			os.Exit(1)
-		}
+		go func(cn net.Conn) {
+			accept(cn)
 
-		var resp *Response
-		if req.RequestAPIVersion > 4 || req.RequestAPIVersion < 0 {
-			resp = &Response{
-				ResponseHeader: ResponseHeader{
-					CorrelationID: req.CorrelationID,
-				},
-				ErrorCode: 35,
+			err = conn.Close()
+			if err != nil {
+				slog.Error("close connection: ", err.Error())
 			}
-		} else {
-			resp = &Response{
-				ResponseHeader: ResponseHeader{
-					CorrelationID: req.CorrelationID,
-				},
-				ErrorCode:      0,
-				ThrottleTimeMS: 1000,
-				APIKeys: []APIKey{
-					{
-						APIKey:     18,
-						MinVersion: 0,
-						MaxVersion: 4,
-					},
-				},
-			}
-		}
-
-		_, err = conn.Write(resp.Serialize())
-		if err != nil {
-			slog.Error("write response: ", err.Error())
-			os.Exit(1)
-		}
+		}(conn)
 	}
 }
 
@@ -136,4 +96,54 @@ func (r *Response) Serialize() []byte {
 	var fullResp []byte
 	fullResp = binary.BigEndian.AppendUint32(fullResp, uint32(len(b)))
 	return append(fullResp, b...)
+}
+
+func accept(conn net.Conn) {
+	for {
+		readBuffer := make([]byte, 1024)
+		_, err := conn.Read(readBuffer)
+		if err == io.EOF {
+			return
+		}
+		if err != nil {
+			slog.Error("read from the connected stream: ", err.Error())
+			os.Exit(1)
+		}
+		req, err := parseRequest(readBuffer)
+		if err != nil {
+			slog.Error("parse request: ", err.Error())
+			os.Exit(1)
+		}
+
+		var resp *Response
+		if req.RequestAPIVersion > 4 || req.RequestAPIVersion < 0 {
+			resp = &Response{
+				ResponseHeader: ResponseHeader{
+					CorrelationID: req.CorrelationID,
+				},
+				ErrorCode: 35,
+			}
+		} else {
+			resp = &Response{
+				ResponseHeader: ResponseHeader{
+					CorrelationID: req.CorrelationID,
+				},
+				ErrorCode:      0,
+				ThrottleTimeMS: 1000,
+				APIKeys: []APIKey{
+					{
+						APIKey:     18,
+						MinVersion: 0,
+						MaxVersion: 4,
+					},
+				},
+			}
+		}
+
+		_, err = conn.Write(resp.Serialize())
+		if err != nil {
+			slog.Error("write response: ", err.Error())
+			os.Exit(1)
+		}
+	}
 }
