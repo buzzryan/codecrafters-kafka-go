@@ -51,7 +51,7 @@ func parseRequestHeaderV1(buf []byte) (*RequestHeaderV1, []byte, error) {
 	}
 	rh.ClientID = buf[14 : 14+int(rh.ClientIDLength)]
 
-	return rh, buf[14+int(rh.ClientIDLength):], nil
+	return rh, buf[15+int(rh.ClientIDLength):], nil
 }
 
 func parseDescribeTopicPartitionsRequestBodyV1(buf []byte) (*DescribeTopicPartitionsRequestBodyV1, error) {
@@ -62,9 +62,9 @@ func parseDescribeTopicPartitionsRequestBodyV1(buf []byte) (*DescribeTopicPartit
 		length := int8(unreadBuf[0])
 		names = append(names, TopicName{
 			Length: length,
-			Value:  unreadBuf[1 : 1+length],
+			Value:  unreadBuf[1:length],
 		})
-		unreadBuf = unreadBuf[2+length:] // buffer
+		unreadBuf = unreadBuf[1+length:] // buffer
 	}
 	responsePartitionLimit := int32(binary.BigEndian.Uint32(unreadBuf[:4]))
 	cursor := int8(unreadBuf[4])
@@ -140,7 +140,7 @@ func (d *DescribeTopicPartitionsResponseBodyV1) Serialize() []byte {
 
 	b = append(b, 0) // add Tag Buffer
 	b = binary.BigEndian.AppendUint32(b, uint32(d.ThrottleTimeMS))
-	b = append(b, byte(len(d.Topics))) // add array length
+	b = append(b, byte(len(d.Topics)+1)) // add array length
 
 	for _, topic := range d.Topics {
 		b = binary.BigEndian.AppendUint16(b, uint16(topic.ErrorCode))

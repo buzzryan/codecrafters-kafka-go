@@ -86,7 +86,7 @@ func handleDescribeTopicPartitions(body []byte, header *RequestHeaderV1) ([]byte
 			CorrelationID: header.CorrelationID,
 		},
 		ThrottleTimeMS: 0,
-		NextCursor:     0,
+		NextCursor:     255,
 	}
 	var topics []Topic
 	for _, topic := range req.Names {
@@ -95,7 +95,7 @@ func handleDescribeTopicPartitions(body []byte, header *RequestHeaderV1) ([]byte
 			TopicName:                 topic,
 			TopicID:                   [16]byte{},
 			IsInternal:                0,
-			PartitionsArray:           0,
+			PartitionsArray:           1,
 			TopicAuthorizedOperations: 0,
 		})
 	}
